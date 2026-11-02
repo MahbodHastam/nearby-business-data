@@ -1,0 +1,8 @@
+/bin/
+/output/
+/*.json
+/*.csv
+.playwright-mcp/
+.DS_Store
+.idea/
+.vscode/
