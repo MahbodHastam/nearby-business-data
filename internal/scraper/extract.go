@@ -60,6 +60,11 @@ const placeJS = `(async () => {
 		phone: q('button[data-item-id^="phone:tel:"]')?.getAttribute('data-item-id') ?? '',
 		website: q('a[data-item-id="authority"]')?.href ?? '',
 		hours: weekly(),
+		// e.g. "Open · Closes 12 am · See more hours". Some pages have no
+		// data-item-id="oh" button; the same text then sits next to the
+		// "Show open hours for the week" icon.
+		status: label('[data-item-id="oh"]') ||
+			(q('[aria-label*="open hours for the week"]')?.parentElement?.innerText ?? '').trim(),
 	};
 	// Some places only show a summary until "See more hours" is clicked,
 	// and that button can show up a bit after the title.
@@ -85,6 +90,7 @@ type rawPlace struct {
 	Phone    string   `json:"phone"`
 	Website  string   `json:"website"`
 	Hours    []string `json:"hours"`
+	Status   string   `json:"status"`
 }
 
 var (
@@ -105,6 +111,7 @@ func toBusiness(r rawPlace, placeURL string) business.Business {
 		Phone:    strings.TrimPrefix(r.Phone, "phone:tel:"),
 		Website:  r.Website,
 		Hours:    r.Hours,
+		OpenNow:  parseOpenNow(r.Status),
 		PlaceID:  parsePlaceID(placeURL),
 		URL:      placeURL,
 	}
@@ -143,4 +150,22 @@ func parsePlaceID(u string) string {
 		return m[1]
 	}
 	return ""
+}
+
+// parseOpenNow reads the status line Maps shows above the hours. It returns
+// nil when there is none or it isn't recognized.
+func parseOpenNow(status string) *bool {
+	s := strings.ToLower(strings.TrimSpace(status))
+	var open bool
+	switch {
+	// "opens" must be checked before "open".
+	case strings.HasPrefix(s, "closed"), strings.HasPrefix(s, "opens"), strings.HasPrefix(s, "reopens"),
+		strings.HasPrefix(s, "temporarily closed"), strings.HasPrefix(s, "permanently closed"):
+		open = false
+	case strings.HasPrefix(s, "open"), strings.HasPrefix(s, "closes"), strings.HasPrefix(s, "closing soon"):
+		open = true
+	default:
+		return nil
+	}
+	return &open
 }

@@ -89,3 +89,28 @@ func TestDedupeAndStripQuery(t *testing.T) {
 		t.Errorf("dedupe = %v", got)
 	}
 }
+
+func TestParseOpenNow(t *testing.T) {
+	tests := map[string]string{
+		"Open · Closes 12 am · See more hours":    "true",
+		"Open 24 hours":                           "true",
+		"Closes soon · 6 pm · See more hours":     "true",
+		"Closed · Opens 8 am Mon":                 "false",
+		"Opens soon · 8 am":                       "false",
+		"Closes soon · 2:30 pm · Reopens 5:30 pm": "true",
+		"Reopens soon · 5:30 pm":                  "false",
+		"Temporarily closed":                      "false",
+		"Permanently closed":                      "false",
+		"":                                        "nil",
+		"See more hours":                          "nil",
+	}
+	for in, want := range tests {
+		got := "nil"
+		if b := parseOpenNow(in); b != nil {
+			got = map[bool]string{true: "true", false: "false"}[*b]
+		}
+		if got != want {
+			t.Errorf("parseOpenNow(%q) = %s; want %s", in, got, want)
+		}
+	}
+}
